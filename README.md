@@ -5,7 +5,7 @@ electricity. If something goes wrong, it sends you a Telegram message.
 
 Early stage. Working on breadboard.
 
-Machine Bachao ig.
+Machine Bachao ig.Been researching for 8 months on this project 
 
 ---
 
