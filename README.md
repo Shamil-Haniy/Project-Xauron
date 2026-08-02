@@ -142,4 +142,3 @@ If you want to talk about licensing or whatever, open an issue.
 ---
 
 Built in Mangalore.
-```
