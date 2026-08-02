@@ -1,73 +1,75 @@
-
 # Xauron
 
-small box that sits on your router's power cable and watches the
-electricity. if something goes wrong it sends you a telegram msg.
+Small box that sits on your router/server's power cable and watches the
+electricity. If something goes wrong, it sends you a Telegram message.
 
-early stage. working on breadboard. 
-machine bachao ig.
+Early stage. Working on breadboard.
+
+Machine Bachao ig.
 
 ---
 
-## what it does
+## What it does
 
-plugs between the dc adapter and the router. reads voltage and
-current like 10 times a sec. learns whats normal for ur device.
-if the adapter starts dying or someone plugs in some random usb
-thing or the power goes out, u get a telegram alert.
+Plugs between the DC adapter and the router. Reads voltage and
+current about 10 times a second.Learns what's normal for your
+device.If the adapter starts dying or someone plugs in some
+random USB thing or the power goes out,you get a Telegram alert.
 
-the router doesnt know this thing exists. no software to install
-on it. no drivers. nothing. just plug it in.
+The router doesn't know this thing exists.No software to install
+on it. No drivers.Nothing. Just plug it in.
 
-## what it doesnt do
+## What it doesn't do
 
-- ac stuff. dc only rn. 5-26v.
-- no dashboard. telegram only.
-- no app.
-- no ml prediction yet. just stats.
-- no battery backup yet.
-- enclosure looks ok ,not great.
+- AC stuff. DC only right now. 5-26V.
+- No dashboard. Telegram only.
+- No app.
+- No ML prediction yet. Just stats.
+- No battery backup yet.
+- Enclosure looks okay, not great.
 
-## hardware
+## Hardware
 
-esp32-c3 supermini + ina219 sensor + 2 barrel jacks + usb-c for
-power + a fuse and tvs diode so it doesnt fry + lid switch for
+ESP32-C3 SuperMini + INA219 sensor + 2 barrel jacks + USB-C for
+power + a fuse and TVS diode so it doesn't fry + lid switch for
 tamper detection.
 
+## Setup
 
-## setup
+1. Flash the firmware to ESP32-C3 (Arduino IDE, board: ESP32C3 Dev Module).
+2. Wire the INA219.
+3. Barrel jacks inline with the power line.
+4. USB-C into the router's USB port.
+5. Connect to WiFi `XAURON-XXXX`, password is on the label.
+6. Open browser, enter your WiFi name and password, hit connect.
+7. Wait 5 minutes for it to learn the baseline.
+8. Done. Alerts come on Telegram.
 
-1. flash the firmware to esp32-c3 (arduino ide, board: esp32c3 dev module)
-2. wire ina219
-3. barrel jacks inline with the power line
-4. usb-c into the router's usb port
-5. connect to wifi `XAURON-XXXX`, password is ` `
-6. open browser, put ur wifi name and pass, hit connect
-7. wait 5 min for it to learn the baseline
-8. done. alerts come on telegram.
+## Config
 
-## config
-
-change these in the code before flashing:
+These need to be changed in the code before flashing:
 
 ```cpp
-const char* SECRET   = "ur hmac secret";
-const char* SB_URL   = "ur supabase url";
-const char* SB_KEY   = "ur supabase anon key";
-const char* TG_TOK   = "ur telegram bot token";
-const char* TG_ME    = "ur chat id";
-const char* TG_OWNER = "customer chat id";
+const char* SECRET   = "your HMAC secret";
+const char* SB_URL   = "your Supabase URL";
+const char* SB_KEY   = "your Supabase anon key";
+const char* TG_TOK   = "your Telegram bot token";
+const char* TG_ME    = "your chat ID";
+const char* TG_OWNER = "customer chat ID";
 ```
 
-make a bot with @botfather. get chat ids from @userinfobot.
-everyone has to /start the bot first or telegram blocks the msg.
-supabase free tier is enough. make a table, enable row level
-security, set insert-only policy for anon key. dont put the
-service_role key in the firmware. ever.
-alerts look like this
+Make a bot with @BotFather. Get chat IDs from @userinfobot.
+Everyone has to /start the bot first or Telegram blocks the message.
 
+Supabase free tier is enough. Make a table, enable Row Level
+Security, set insert-only policy for the anon key. Don't put the
+service_role key in the firmware. Ever.
+
+## Alerts look like this
+
+```
 ⚡ XAURON ALERT
-Device: XXXXXXX
+Device: XA-XXXXXX
 Time: 02 Aug, 3:42 AM
 
 Current: 1.247A (normal: 0.512A)
@@ -77,58 +79,67 @@ Severity: HIGH (87%)
 
 Likely cause: Unusual power draw.
 Check: Is a new device plugged in?
+```
 
-if wifi goes down it stores everything locally and sends a
-summary when it comes back. no data lost.
+If WiFi goes down, it stores everything locally and sends a
+summary when it comes back. No data lost.
 
+## How detection works (short version)
 
-## how detection works (short version)
-first 5 min it learns the normal current draw. uses welford's
-algorithm so it only needs 3 numbers in memory. after that every
-reading gets a z-score. if its 4+ standard deviations off AND it
+First 5 minutes, it learns the normal current draw.Every
+reading gets a Z-score. If it's 4+ standard deviations off AND it
 stays that way for 1.5 seconds, it alerts.
-the 1.5 sec thing filters out fan spinups and usb plug-ins and
-generator switchover spikes. those are short. real problems arent.
-the baseline adapts slowly to normal changes (temp, aging) but
-freezes during anomalies so nobody can slowly shift it to hide
-something.
-tuned for indian grid. mangalore specifically. the sigma floors
-absorb welding noise and ac compressor ripple and monsoon voltage
+
+The 1.5-second thing filters out fan spin-ups, USB plug-ins, and
+generator switchover spikes. Those are short. Real problems aren't.
+
+The baseline adapts slowly to normal changes (temperature, aging)
+but freezes during anomalies, so nobody can slowly shift it to
+hide something.
+
+Tuned for the Indian grid. Mangalore specifically. The sigma floors
+absorb welding noise, AC compressor ripple, and monsoon voltage
 sags without false alerting.
 
-## security
-  https for everything. no plaintext.
-  every log entry hmac-sha256 signed.
-  supabase rls so devices can only insert, not read.
-  zero open ports. outbound only. nothing listening.
-  lid switch + boot counter for physical tamper.
+## Security
 
-flash isnt encrypted yet. jtag isnt disabled yet. thats for
-production units. this is a breadboard prototype.
+- HTTPS for everything. No plaintext.
+- Every log entry HMAC-SHA256 signed.
+- Supabase RLS so devices can only insert, not read.
+- Zero open ports. Outbound only. Nothing listening.
+- Lid switch + boot counter for physical tamper.
 
-## known issues
+Flash isn't encrypted yet. JTAG isn't disabled yet. That's for
+production units. This is a breadboard prototype.
 
-gpio0 is the boot pin. if u hold reset while powering on it
-goes into download mode. label on the case says dont do that.
-people will do that anyway.
-hunt resistor gets warm above 2A continuous. fine for routers.
-not fine for bigger stuff.
-if the router has no usb port u need a separate 5v charger.
-some customers wont read the setup card. they will call u.
-telegram doesnt work in nepal. found that out the hard way.
+## Known issues
 
+- GPIO0 is the boot pin. If you hold reset while powering on, it
+  goes into download mode. Label on the case says don't do that.
+  People will do that anyway.
+- Shunt resistor gets warm above 2A continuous. Fine for routers.
+  Not fine for bigger stuff.
+- If the router has no USB port, you need a separate 5V charger.
+  Some customers won't read the setup card. They will call you.
+- Telegram doesn't work in Nepal. Found that out the hard way.
 
-## next
+## Next
 
-custom pcb (kicad, jlcpcb)
-battery backup (lipo + tp4056)
-simple web dashboard
-ac version for factory machines (ct clamp, different sensors,
-same algorithm. needs bis cert tho. 6 month process. not started.)
-ml model
+- Custom PCB (KiCad, JLCPCB).
+- Battery backup (LiPo + TP4056).
+- Simple web dashboard.
+- AC version for factory machines (CT clamp, different sensors,
+  same algorithm. Needs BIS cert though. 6-month process. Not started.)
+- ML model
 
-## license
-proprietary for now. code and algorithm are not open source.
-this readme tells u what it does.
-if u want to talk about licensing or whatever, open an issue.
-built in mangalore.
+## License
+
+Proprietary for now. Code and algorithm are not open source.
+This README tells you what it does.
+
+If you want to talk about licensing or whatever, open an issue.
+
+---
+
+Built in Mangalore.
+```
