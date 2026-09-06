@@ -6,8 +6,7 @@
 - 10 Hz is enough for load changes, not for fine signature work.
 - Baseline assumes stable idle. A device that swings a lot in normal use
   makes the spread wide and real faults harder to catch.
-- Single chip, no redundancy. If the box dies you don't know. Yes I see
-  the irony.
+- Single chip, no redundancy. If the box dies you don't know.
 - No FFT yet. Temperature is crude (NTC approximation). Hall sensor is
   gross-tamper only.
 
@@ -22,6 +21,6 @@
 - FFT on the current ripple.
 - Kalman filtering.
 - Proper PCB in KiCad.
-- Build the v1 breadboard and take REAL photos (no fake ones).
+- Build the v1 breadboard.
 
 Someone will figure out the FFT thing ig. If you know, tell me.
