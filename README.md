@@ -1,144 +1,210 @@
 # Xauron
 
-Small box that sits on your router/server's power cable and watches the
-electricity. If something goes wrong, it sends you a Telegram message.
+A box that sits on a power cable, watches the electricity, and warns
+you before the machine dies.
 
-Early stage. Working on breadboard.
+Early stage. Breadboard prototype. Built by a student in Mangalore.
 
-Machine Bachao ig. 
+Machine bachao ig.
 
 ---
+
+## Why this needs to exist
+
+Here's something that happens to everyone and nobody thinks about.
+
+Your router dies. But not all at once. It dies slowly, over weeks.
+The internet gets flaky. You blame the ISP. You call them. They run a
+line test from their end, everything looks fine, they tell you to
+restart the router. You do. It works for a day. Then it's bad again.
+Eventually it's fully dead, you buy a new one, and you forget about it.
+
+But the router didn't just die. Its power adapter was failing. The
+capacitor inside was drying out, and for weeks it was delivering dirty,
+sagging power that slowly cooked the router. The ISP couldn't see it
+because it was never a line problem. You couldn't see it because it was
+happening inside a little black box. And the router couldn't report it,
+because its operating system has no idea whether the power feeding it
+is healthy or garbage.
+
+The one place the truth existed the whole time was in the electricity
+itself. And nobody was watching it.
+
+**Xauron watches it.**
+
+This applies to so much more than routers. CCTV cameras that go dark at
+the worst moment. Medical fridges whose compressors are quietly wearing
+out. That one machine in a small shop that just stops one day and takes
+the business down with it. All of them run on DC power, and all of them
+give warning signs in the electricity long before they actually fail and
+if someone plugged in a rogue device. The DC Sentinel watches the raw electricity
+and catches what software can't see.
+Xauron reads those warning signs. That's the whole idea.
+
+## What it is
+
+A small box that sits between a power adapter and the device it powers.
+It samples the current and voltage 10 times a second, learns what
+"normal" looks like for that specific device, and raises a flag when
+normal stops.
+
+No camera. No app on the device. No drivers. No software to install on
+the thing being watched. It just reads the power line. The device never
+knows it's there.
 
 ## What it does
 
-Plugs between the DC adapter and the router. Reads voltage and
-current about 10 times a second.Learns what's normal for your
-device.If the adapter starts dying or someone plugs in some
-random USB thing or the power goes out,you get a Telegram alert.
+- Sits inline on a DC line (5-26V, up to ~3A)
+- Learns the device's normal power rhythm in about 5 minutes
+- Alerts on sudden changes that stick around (not one-off blips)
+- Watches for slow, gradual drift — the kind that means a part is
+  wearing out over weeks
+- Stores logs locally when the internet drops, uploads them when it's back
+- Signs every log so nobody can quietly rewrite the history
+- Can produce a report proving the power was clean when a device failed
 
-The router doesn't know this thing exists.No software to install
-on it. No drivers.Nothing. Just plug it in.
+## What it does NOT do
 
-## What it doesn't do
+- One power line only. Not a whole-house monitor.
+- It tells you something changed, not which exact component broke.
+- No machine-learning prediction yet. Statistics only.
+- No battery backup yet (so if the power cuts, it can't send a message
+  about the power cutting — that's on the list to fix).
 
-- AC stuff. DC only right now. 5-26V.
-- No dashboard. Telegram only.
-- No app.
-- No ML prediction yet. Just stats.
-- No battery backup yet.
-- Enclosure looks okay, not great.
+## How it works
+
+I'll explain it the way I understand it, layer by layer.
+
+**1. Reading the power — Ohm's law.**
+The heart of it is an INA219 chip. It has a tiny 0.1-ohm resistor in
+the power line. When current flows through that resistor, a small
+voltage appears across it. Measure that voltage, divide by the
+resistance, and you get the current. That's it. Ohm's law is doing the
+actual sensing. Everything else is just interpreting the number.
+
+**2. Learning "normal" — Welford's algorithm.**
+For the first five minutes it just watches and learns. It uses Welford's
+online algorithm to build a running average and spread of the readings.
+The reason this algorithm specifically is neat: it updates the average
+and variance one sample at a time, so you never have to store the whole
+history in memory. On a small chip with limited RAM, that matters a lot.
+
+**3. Spotting a sudden problem — z-score with a patience window.**
+Every new reading is compared to what it learned, as a z-score — basically
+"how many standard deviations away from normal is this?" If a reading is
+far enough off, it gets flagged. But one flagged reading isn't enough,
+because fans spin up, disks seek, USBs get plugged in, and all of those
+look like spikes for a split second. So Xauron only alerts if the weird
+reading *persists* for about 1.5 seconds. Real faults stick around.
+Harmless blips don't. That one rule kills almost all the false alarms.
+
+**4. Spotting the slow death — CUSUM.**
+The dangerous failures are the quiet ones. A drying capacitor doesn't
+spike. It just makes the power draw 1% worse every week. No single day
+looks abnormal, so a threshold never trips. CUSUM is a classic
+statistical method that adds up tiny deviations over time and fires when
+they pile up. That's how Xauron catches a part that's slowly dying weeks
+before it actually fails.
+
+**5. Remembering things — offline storage.**
+If the WiFi drops, Xauron doesn't forget. It writes signed logs to its
+flash storage in rotating files, and uploads them the moment the
+connection returns. A file only gets deleted after every line in it has
+safely made it to the cloud. No data lost across an outage.
+
+**6. Keeping it honest — signatures and a one-way door.**
+Every log line gets an HMAC signature, like a wax seal. If someone later
+tries to edit the history to hide a surge, the seal breaks. And the
+cloud database is set up so the device can only *insert* records — it
+physically can't read, edit, or delete the ones it already wrote.
+
+**Credit where it's due:** Welford's algorithm (Knuth, TAOCP Vol 2) and
+CUSUM are published methods.I implemented and tuned
+them for this specific job.
+
+## A day in the life — how it actually plays out
+
+Day 1: you plug Xauron between the adapter and the router. It watches
+for five minutes and locks in the baseline. "Normal" for this router is
+about 0.5 amps at 12 volts.
+
+Days 2-11: boring. Readings sit inside the normal band. Nothing to
+report. This is the device doing its job by staying quiet.
+
+Day 12: the current starts sitting a little higher than usual. Not
+enough to trip an alarm on any single reading, but CUSUM is quietly
+adding up the difference.
+
+Day 14: Xauron sends a message. "Slow drift detected. Average current
+up 18% from baseline over 72 hours." The adapter is starting to work
+harder than it should. Something is degrading.
+
+Day 16: you swap the adapter for a spare before it takes the router
+down with it. The router never died. You never called the ISP. You
+didn't lose a week of flaky internet.
+
+That's the whole point. Catch it while it's a cheap fix, not after it's
+a dead device.
+
+## The warranty angle
+
+Here's a real problem this helps with. When a device dies under warranty,
+the manufacturer often blames "power surge" or "improper power supply"
+and refuses the claim. You have no way to prove the power was fine.
+
+Xauron logs the actual voltage and current for the entire life of the
+device, and every entry is signed. So if something dies, you can produce
+a report showing the power stayed clean the whole time. Now it's not
+your word against theirs. You have a record.
 
 ## Hardware
 
-ESP32-C3 SuperMini + INA219 sensor + 2 barrel jacks + USB-C for
-power + a fuse and TVS diode so it doesn't fry + lid switch for
-tamper detection.
+- ESP32-C3 — the brain, plus WiFi
+- INA219 — the current and voltage sensor
+- A fuse and a TVS diode, so a surge doesn't turn it into a fire
+- Two barrel jacks to sit inline in the power line
+- An NTC thermistor for temperature (rough, but it's there)
 
-## Setup
+## Repo layout
 
-1. Flash the firmware to ESP32-C3 (Arduino IDE, board: ESP32C3 Dev Module).
-2. Wire the INA219.
-3. Barrel jacks inline with the power line.
-4. USB-C into the router's USB port.
-5. Connect to WiFi `XAURON-XXXX`, password is on the label.
-6. Open browser, enter your WiFi name and password, hit connect.
-7. Wait 5 minutes for it to learn the baseline.
-8. Done. Alerts come on Telegram.
+- `firmware/` — the C++ that runs on the ESP32
+- `docs/` — what I learned, what I researched, what I still don't get
 
-## Config
+## The honest part
 
-These need to be changed in the code before flashing:
+I'm a 2nd-year ECE student building this solo. It's a real working
+prototype on a breadboard, and it's also very much a learning project.
 
-```cpp
-const char* SECRET   = "your HMAC secret";
-const char* SB_URL   = "your Supabase URL";
-const char* SB_KEY   = "your Supabase anon key";
-const char* TG_TOK   = "your Telegram bot token";
-const char* TG_ME    = "your chat ID";
-const char* TG_OWNER = "customer chat ID";
-```
-
-Make a bot with @BotFather. Get chat IDs from @userinfobot.
-Everyone has to /start the bot first or Telegram blocks the message.
-
-Supabase free tier is enough. Make a table, enable Row Level
-Security, set insert-only policy for the anon key. Don't put the
-service_role key in the firmware. Ever.
-
-## Alerts look like this
-
-```
-⚡ XAURON ALERT
-Device: XA-XXXXXX
-Time: 02 Aug, 3:42 AM
-
-Current: 1.247A (normal: 0.512A)
-Voltage: 11.82V
-Power: 14.7W
-Severity: HIGH (87%)
-
-Likely cause: Unusual power draw.
-Check: Is a new device plugged in?
-```
-
-If WiFi goes down, it stores everything locally and sends a
-summary when it comes back. No data lost.
-
-## How detection works (short version)
-
-First 5 minutes, it learns the normal current draw.Every
-reading gets a Z-score. If it's 4+ standard deviations off AND it
-stays that way for 1.5 seconds, it alerts.
-
-The 1.5-second thing filters out fan spin-ups, USB plug-ins, and
-generator switchover spikes. Those are short. Real problems aren't.
-
-The baseline adapts slowly to normal changes (temperature, aging)
-but freezes during anomalies, so nobody can slowly shift it to
-hide something.
-
-Tuned for the Indian grid. Mangalore specifically. The sigma floors
-absorb welding noise, AC compressor ripple, and monsoon voltage
-sags without false alerting.
-
-## Security
-
-- HTTPS for everything. No plaintext.
-- Every log entry HMAC-SHA256 signed.
-- Supabase RLS so devices can only insert, not read.
-- Zero open ports. Outbound only. Nothing listening.
-- Lid switch + boot counter for physical tamper.
-
-Flash isn't encrypted yet. JTAG isn't disabled yet. That's for
-production units. This is a breadboard prototype.
+Full transparency: this code was written with AI assistance. I'm
+using it to learn, and I'm going through it line by line until I can
+explain every part on my own. The algorithms I used are credited above.
+If you read something and think it's wrong or there's a better way,
+open an issue. I genuinely want the feedback — that's a big part of why
+this is public.
 
 ## Known issues
 
-- GPIO0 is the boot pin. If you hold reset while powering on, it
-  goes into download mode. Label on the case says don't do that.
-  People will do that anyway.
-- Shunt resistor gets warm above 2A continuous. Fine for routers.
-  Not fine for bigger stuff.
-- If the router has no USB port, you need a separate 5V charger.
-  Some customers won't read the setup card. They will call you.
-- Telegram doesn't work in Nepal. Found that out the hard way.
+- It's a breadboard. Wires come loose. That's the current reality.
+- The shunt resistor gets warm above ~2A continuous. Fine for a router,
+  not for bigger loads.
+- 10Hz sampling is good for catching load changes but too slow for any
+  kind of frequency analysis. That's a future problem.
+- If the box itself dies, nothing tells you. The watchdog that watches
+  machines needs its own watchdog.
 
-## Next
+## What I'm building next
 
-- Custom PCB (KiCad, JLCPCB).
-- Battery backup (LiPo + TP4056).
-- Simple web dashboard.
-- AC version for factory machines (CT clamp, different sensors,
-  same algorithm. Needs BIS cert though. 6-month process. Not started.)
-- ML model
+- Move from breadboard to a real PCB (KiCad)
+- Add a small battery so it can report a power loss instead of just
+  dying silently with everything else
+- Properly understand and add FFT analysis of the power ripple
+- Test it on more than routers — cameras, a 3D printer, whatever I can
+  get my hands on
 
 ## License
 
-Proprietary for now. Code and algorithm are not open source.
-This README tells you what it does.
+GPLv3. Use it, learn from it, build on it. If you make something with
+this code, keep it open too.
 
-If you want to talk about licensing or whatever, open an issue.
-
----
-
-Built in Mangalore.
+Built in Mangalore. Feedback welcome.
+README_EOF
