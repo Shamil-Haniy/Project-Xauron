@@ -13,17 +13,17 @@ Machine bachao ig.
 
 Here's something that happens to everyone and nobody thinks about.
 
-Your router dies. But not all at once. It dies slowly, over weeks.
-The internet gets flaky. You blame the ISP. You call them. They run a
-line test from their end, everything looks fine, they tell you to
-restart the router. You do. It works for a day. Then it's bad again.
-Eventually it's fully dead, you buy a new one, and you forget about it.
+Your router dies.But not all at once.It dies slowly, over weeks.
+The internet gets flaky.You blame the ISP.You call them.They run a
+line test from their end,everything looks fine,they tell you to
+restart the router.You do.It works for a day.Then it's bad again.
+Eventually it's fully dead, you buy a new one,and you forget about it.
 
-But the router didn't just die. Its power adapter was failing. The
-capacitor inside was drying out, and for weeks it was delivering dirty,
-sagging power that slowly cooked the router. The ISP couldn't see it
-because it was never a line problem. You couldn't see it because it was
-happening inside a little black box. And the router couldn't report it,
+But the router didn't just die.Its power adapter was failing.The
+capacitor inside was drying out,and for weeks it was delivering dirty,
+sagging power that slowly cooked the router.The ISP couldn't see it
+because it was never a line problem.You couldn't see it because it was
+happening inside a little black box.And the router couldn't report it,
 because its operating system has no idea whether the power feeding it
 is healthy or garbage.
 
@@ -35,17 +35,17 @@ itself. And nobody was watching it.
 This applies to so much more than routers. CCTV cameras that go dark at
 the worst moment. Medical fridges whose compressors are quietly wearing
 out. That one machine in a small shop that just stops one day and takes
-the business down with it. All of them run on DC power, and all of them
+the business down with it. All of them run on DC power,and all of them
 give warning signs in the electricity long before they actually fail and
-if someone plugged in a rogue device. The DC Sentinel watches the raw electricity
+if someone plugged in a rogue device.It watches the raw electricity
 and catches what software can't see.
 Xauron reads those warning signs. That's the whole idea.
 
 ## What it is
 
 A small box that sits between a power adapter and the device it powers.
-It samples the current and voltage 10 times a second, learns what
-"normal" looks like for that specific device, and raises a flag when
+It samples the current and voltage 10 times a second,learns what
+"normal" looks like for that specific device,and raises a flag when
 normal stops.
 
 No camera. No app on the device. No drivers. No software to install on
@@ -194,12 +194,12 @@ this is public.
 
 ## What I'm building next
 
-- Move from breadboard to a real PCB (KiCad)
+- Move from breadboard to a real PCB (KiCad).
 - Add a small battery so it can report a power loss instead of just
-  dying silently with everything else
-- Properly understand and add FFT analysis of the power ripple
+  dying silently with everything else.
+- Properly understand and add FFT analysis of the power ripple.
 - Test it on more than routers — cameras, a 3D printer, whatever I can
-  get my hands on
+  get my hands on.
 
 ## License
 
