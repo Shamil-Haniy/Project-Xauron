@@ -207,4 +207,3 @@ GPLv3. Use it, learn from it, build on it. If you make something with
 this code, keep it open too.
 
 Built in Mangalore. Feedback welcome.
-README_EOF
